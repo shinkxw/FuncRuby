@@ -1,0 +1,211 @@
+﻿有如下可获得list长度的函数length:
+
+(define (length l)
+    (cond
+      [(null? l) 0]
+      [else (add1 (length (cdr l)))]))
+可以看到length的定义中调用了自身.如果现在我们没有define,那么我们该怎样得到length呢?
+
+ 
+
+已知.如果一个列表为空.那么它的长度是0.所以毫无疑问.可以得到一个返回空列表长度0的函数(这是一句废话. -_-!).那么就给它取个名字length0.因为它的输入只能是空列表.对于其他的输入.随便给个什么.空值.错误.或者死循环都好.因为我们根本不会用它去求非空列表的长度.
+ 
+
+(λ(l)
+  (cond
+    [(null? l) 0]
+    [else (add1 (void (cdr l)))]))
+那么有了length0,就可以得到length1.依次类推可以得到length2,length3....length1如下.
+
+(λ(l)
+  (cond
+    [(null? l) 0]
+    [else (add1 ((λ(l)
+                   (cond
+                     [(null? l) 0]
+                     [else (add1 (void))]))
+                 (cdr l)))]))
+length1可以得到空列表或者只含一个元素的列表的长度.
+
+ 
+
+现在再来看length0.可以将void作为参数传入,那么length0又可以写成.
+ 
+
+((λ(length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 (length (cdr l)))])))
+ void)
+同理,length1可以写成
+
+((λ(length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 (length (cdr l)))])))
+ ((λ(length)
+    (λ(l)
+      (cond
+        [(null? l) 0]
+        [else (add1 (length (cdr l)))])))
+  void))
+ 
+
+再抽象一抽.它还是length0
+ 
+
+((λ (mk-length)
+   (mk-length void))
+ (λ(length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 (length (cdr l)))]))))
+length1:
+
+((λ (mk-length)
+   (mk-length (mk-length void)))
+ (λ(length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 (length (cdr l)))]))))
+ 
+
+既然void是期望中永远都不会用到的东西.那么把mk-length传入它自己也没有什么问题吧.得到下面这样的length0
+ 
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 (mk-length (cdr l)))]))))
+再调用一次.得到length1:
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 ((mk-length void) (cdr l)))]))))
+(notes:I dont know how to write length2)
+
+ 
+
+让mk-length不停的调用自己.就得到了length:
+ 
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else (add1 ((mk-length mk-length)(cdr l)))]))))
+ 
+
+如果将(mk-length mk-length)作为参数.即写为:
+ 
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   ((λ(length)
+      (λ(l)
+        (cond
+          [(null? l) 0]
+          [else 
+           (add1 
+            (length(cdr l)))])))
+    (mk-length mk-length))))
+这样是不行的.这样mk-length 会不停的调用自己.陷入死循环.
+
+ 
+
+因为
+ 
+
+(λ(x)
+  ((mk-length mk-length)x))
+既是
+
+(mk-length mk-length)
+所以
+
+length可以写做:
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else
+        (add1 
+         ((λ(x)
+            ((mk-length mk-length)x))(cdr l)))]))))
+此时.用lambda包装过(mk-length mk-length)的就可以写做参数传入了,即:
+
+((λ (mk-length)
+   (mk-length mk-length))
+ (λ(mk-length)
+   ((λ(length)
+      (λ(l)
+        (cond
+          [(null? l) 0]
+          [else
+           (add1 
+            (length
+             (cdr l)))])))
+    (λ(x)
+      ((mk-length mk-length)x)))))
+ 
+
+将最像length的那部分移出来,就得到了应用序的Y组合子.这就是不用define的length:
+ 
+
+((λ(le)
+   ((λ (mk-length)
+      (mk-length mk-length))
+    (λ(mk-length)
+      (le
+       (λ(x)
+         ((mk-length mk-length)x))))))
+ (λ(length)
+   (λ(l)
+     (cond
+       [(null? l) 0]
+       [else
+        (add1 
+         (length
+          (cdr l)))]))))
+Y组合子就是这样的:
+
+(λ(le)
+   ((λ (f)
+      (f f))
+    (λ(f)
+      (le(λ(x)
+           ((f f)x))))))
+改个名字.加个语法糖:
+
+(lambda (le)
+  (let ([g (λ(f)
+             (le(λ(x)
+                  ((f f)x))))])
+    (g g)))
+试试不用define的fact
+
+((lambda (le)
+  (let ([f (λ(f)
+             (le(λ(x)
+                  ((f f)x))))])
+    (f f)))
+   (λ(fact)
+     (lambda (n)
+    (if (< n 2) 1 (* n (fact (- n 1)))))))
