@@ -1,0 +1,468 @@
+﻿限制
+
+不使用gem
+不使用标准库
+不使用模块
+不使用方法
+不使用类
+不使用控制语句！
+不使用赋值语句！
+不使用数组！
+不使用字符串！
+不使用数字！
+不使用布尔值！
+只使用以下特性：
+
+创建 proc
+调用 proc
+此外，我们还使用了常量，这只是为了增强可读性。如果不用常量的话，我们可以重复书写proc。所以我们的程序实际上不依赖这个特性。
+
+proc
+
+单参数
+
+Ruby 中的 Proc 支持多参数。实际上，多参数调用可以改写成嵌套的单参数调用。例如：
+
+lambda { |x, y|
+  x + y
+}.call(3, 4)
+可以改成
+
+lambda { |x|
+  lambda { |y|
+    x + y
+  }
+}.call(3).call(4)
+由于我们的目标是使用尽可能少的特性，所以我们将代码限定为接受单参数的proc。
+
+创建、调用方法
+
+在 Ruby 中，创建 Proc 有四种写法：
+
+Proc.new { |x| x + 1 }
+    proc { |x| x + 1 }
+  lambda { |x| x + 1 }
+        -> x { x + 1 }
+它们有一些细微的差别，包括多参数的处理，和 return 的对待，由于我们的代码中不使用这些特性，所以四者是等效的。
+
+同样，调用也有四种写法：
+
+p.call(41)
+p[41]
+p === 41
+p.(41)
+这样组合一下，就有16种写法。为了统一，我们使用如下的写法：
+
+-> x { x + 1 }[41]
+目标
+
+我们尝试解决FizzBuzz问题：
+
+输出0到100的数字，但是3的倍数输出Fizz，5的倍数输出Buzz，同时是3和5的倍数的输出FizzBuzz。
+
+使用 Ruby 有很多种解法，比较直接的是如下的解法：
+
+(1..100).map do |n|
+  if (n % 15).zero?
+    'FizzBuzz'
+  elsif (n % 3).zero?
+    'Fizz'
+  elsif (n % 5).zero?
+    'Buzz'
+  else
+    n.to_s
+  end
+end
+数字
+
+首先，我们需要在不使用数字的情况下来表示数字。这里的我们只用到了自然数。
+
+记住，我们只允许使用创建Proc和调用Proc两个特性。此时我们需要表示自然数，那么，我们可以通过调用的次数来表示，即，一次调用表示1，二次调用表示2，三次调用表示3：
+
+ZERO  = -> p { -> x {       x    } }
+ONE   = -> p { -> x {     p[x]   } }
+TWO   = -> p { -> x {   p[p[x]]  } }
+THREE = -> p { -> x { p[p[p[x]]] } }
+我们的代码中需要数字是3、5、15、100：
+
+THREE = -> p { -> x { p[p[p[x]]] } }
+FIVE    = -> p { -> x { p[p[p[p[p[x]]]]] } }
+FIFTEEN = -> p { -> x { p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[x]]]]]]]]]]]]]]] } }
+HUNDRED = -> p { -> x { p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[p[x]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]] } }
+条件语句
+
+由于if、elsif、else语句可以改写成嵌套的if语句，因此，我们只要能通过 Proc 实现 if 结构就可以了。
+
+由于我们只有 Proc 可用，因此我们必须把 if 结构也表示成 Proc 的形式。我们可以将 if 视为一个 proc，它接受三个参数，第一个参数为条件语句（布尔值），第二个参数为第一个参数为真时执行的语句，第三个参数为第一个参数为假时执行的语句。
+
+利用上面提到的将多参数 Proc 转为单参数的技巧，我们的 IF 结构如下：
+
+IF = 
+  -> b {
+    -> x {
+      -> y {
+        # b 为真时返回 x，否则返回 y
+      }
+    }
+  }
+返回值取决于 b 的真假，不过别忘了，我们连 Ruby 内建的布尔值都不用！因此，我们先要实现布尔值。
+
+既然我们需要实现：
+
+b 为真时返回 x，否则返回 y
+
+那么我们可以将 b （布尔值）定义为一个 Proc，当它返回 x 时我们说他是真的，当它返回 y 时我们说它是假的：
+
+TRUE  = -> x { -> y { x } }
+FALSE = -> x { -> y { y } }
+如果你还记得数字 0 的定义的话，你就会发现其实 FALSE 和 0 是等价的。
+
+ZERO  = -> p { -> x {       x    } }
+因此我们的 IF 只需返回 b[x][y] 即可， b 会根据自身的真假返回对应的语句：
+
+IF =
+  -> b {
+    -> x {
+      -> y {
+        b[x][y]
+      }
+    }
+  }
+回顾以下上面的定义，IF 通过 IF[b][x][y] 形式调用，接受 b x y 三个参数，然后返回 b[x][y] 。也就是说， IF[b][x][y] 和 b[x][y] 是等价的，既然如此，那么 IF 的定义就可以简写：
+
+IF = -> b {b}
+然后我们就可以调用 IF 来实现条件语句：
+
+>> IF[TRUE][:foo][:bar]
+=> :foo
+
+>> IF[FALSE][:foo][:bar]
+=> :bar
+结合上节的内容，我们的程序可以改成如下的伪代码：
+
+(ONE..HUNDRED).map do |n|
+  IF[(n % FIFTEEN).zero?][
+    'FizzBuzz'
+  ][IF[(n % THREE).zero?][
+    'Fizz'
+  ][IF[(n % FIVE).zero?][
+    'Buzz'
+  ][
+    n.to_s
+  ]]]
+end
+当然这只是伪代码，不能实际执行，例如 Ruby 不支持 ONE..HUNDRED 这样的写法。
+
+判断
+
+我们的程序中有三个余数是否为零的判断。因此我们需要使用 Proc 实现是否为零的判断。
+
+回顾我们先前的数字的定义：
+
+ZERO  = -> p { -> x {       x    } }
+ONE   = -> p { -> x {     p[x]   } }
+TWO   = -> p { -> x {   p[p[x]]  } }
+THREE = -> p { -> x { p[p[p[x]]] } }
+...
+我们注意到，只有零是直接返回 x 而没有调用 p ，其他数字都至少调用了一次 p 。同时，我们期望的效果是零返回真，非零返回假。因此，我们可以将 x 设为真，而让 p 总是返回假，然后让判断函数返回数字 Proc 返回的值。这样，只有当数字是零的时候， p 才不会被调用，判断函数才会直接返回 x ，也就是真。
+
+IS_ZERO = -> n { n[-> x { FALSE }][TRUE] }
+由此我们的伪代码可以修改为：
+
+(ONE..HUNDRED).map do |n|
+  IF[IS_ZERO[n % FIFTEEN]][
+    'FizzBuzz'
+  ][IF[IS_ZERO[n % THREE]][
+    'Fizz'
+  ][IF[IS_ZERO[n % FIVE]][
+    'Buzz'
+  ][
+    n.to_s
+  ]]]
+end
+算术
+
+然后我们要实现的就是取余运算。为此我们先实现最基本的递增、递减运算。
+
+递增运算很简单，首先我们注意到， n 代表了n次调用 p ，即 n[p][x] ，那么我们只要再调用一次即可， p[n[p][x]] ：
+
+INCREMENT = -> n { -> p { -> x { p[n[p][x]] } } }
+递减的实现比较复杂：
+
+DECREMENT = -> n { -> f { -> x { n[-> g { -> h { h[g[f]] } }]
+                                  [-> y { x }][-> y { y }] } } }
+篇幅有限，不详细解释递减。可以简单验证一下：当 n 为 1 的时候，直接返回 x，也就是 0。
+
+有了递增、递减之后，我们很容易就能实现加减，进而实现乘法和乘方：
+
+ADD      = -> m { -> n { n[INCREMENT][m] } }
+SUBTRACT = -> m { -> n { n[DECREMENT][m] } }
+MULTIPLY = -> m { -> n { n[ADD[m]][ZERO] } }
+POWER    = -> m { -> n { n[MULTIPLY[m]][ONE] } }
+回到我们的取余运算上来，首先，我们给出标准的取余算法：
+
+def mod(m, n)
+  if n <= m
+    mod(m - n, n)
+  else
+    m
+  end
+end
+首先，我们需要实现小于等于的判断。判断 n 是否 小于等于 m，只需判断 n -m 是否小于等于零。
+
+我们已经实现了是否等于零的判断。
+
+同时，由于我们只实现了自然数，根据我们的 SUBTRACT 定义，如果一个小数减去一个大数，那么它同样会返回 0。
+
+因此，小于等于的定义如下：
+
+IS_LESS_OR_EQUAL =
+  -> m { -> n {
+    IS_ZERO[SUBTRACT[m][n]]
+  } }
+由此我们得到取余运算的定义：
+
+MOD =
+  -> m { -> n {
+    IF[IS_LESS_OR_EQUAL[n][m]][
+      MOD[SUBTRACT[m][n]][n]
+    ][
+      m
+    ]
+  } }
+等等，这个定义是有问题的！由于 IF 的参数会先运算再传递，因此调用 MOD 时会先调用参数中的 MOD，然后这个 MOD 又需要递归地调用另一个 MOD，形成无限的调用。因此，我们需要延缓参数中的 MOD 的运算。在 Ruby 中，使用 Proc 包裹即可实现延缓运算。
+
+MOD =
+  -> m { -> n {
+    IF[IS_LESS_OR_EQUAL[n][m]][
+      -> x {
+        MOD[SUBTRACT[m][n]][n][x]
+      }
+    ][
+      m
+    ]
+  } }
+不过这里有个缺陷。我们这里递归地调用了 MOD，在 MOD 的定义中包含了 MOD，这实际上是使用了赋值语句了，而不是常量定义了。
+
+好在，不使用赋值语句（也就是匿名函数）也完全可以实现递归。
+
+如果我们将 MOD 自身作为参数传入，就可以不依赖赋值语句而递归调用 MOD 自身了。也就是说，我们需要将 f(x) 改写为 g(f(x))，同时保证 g(f(x)) 和 f(x) 是等效的。
+
+我们可以手工构造符合条件的 g，不过其实有一个通用的 Y 组合子，对于任意 Proc f，都满足 Y(f(x)) 等价于 f(x)：
+
+Y = -> f { -> x { f[x[x]] }
+          [-> x { f[x[x]] }] }
+同样，为了延迟运算，我们需要使用 Y 组合子的变体 Z 组合子：
+
+Z = -> f { -> x { f[-> y { x[x][y] }] }
+          [-> x { f[-> y { x[x][y] }] }] }
+关于 Y 组合子和 Z 组合子的推导，可以参考 The Little Schemer
+
+MOD =
+  Z[-> f { -> m { -> n {
+    IF[IS_LESS_OR_EQUAL[n][m]][
+      -> x {
+        f[SUBTRACT[m][n]][n][x]
+      }
+    ][
+      m
+    ]
+  } } }]
+由此，我们的程序可以改为：
+
+(ONE..HUNDRED).map do |n|
+  IF[IS_ZERO[MOD[n][FIFTEEN]]][
+    'FizzBuzz'
+  ][IF[IS_ZERO[MOD[n][THREE]]][
+    'Fizz'
+  ][IF[IS_ZERO[MOD[n][FIVE]]][
+    'Buzz'
+  ][
+    n.to_s
+  ]]]
+end
+列表
+
+要支持 .. 和 map ，我们需要实现列表。
+
+牢记我们只有 Proc。考虑到 Proc 接受的一组参数，其实就可以看成列表。那么，反过来我们也可以用 Proc 接受的参数来表示列表。
+
+我们先考虑最简单的情形，只有两个元素的列表：（同样使用嵌套的单参数 Proc 来表示多参数）
+
+PAIR  = -> x { -> y { -> f { f[x][y] } } }
+LEFT  = -> p { p[-> x { -> y { x } } ] }
+RIGHT = -> p { p[-> x { -> y { y } } ] }
+我们可以将多元素的列表使用嵌套的 pair 来表示。
+
+此外，为了方便查询列表是否为空，我们将列表的首个元素作为标记（TRUE 和 FALSE）。
+
+因此， IS_EMPTY 和 LEFT 就等价了。
+
+我们将空表定义为：
+
+EMPTY     = PAIR[TRUE][TRUE]
+而在列表前添加元素使用如下 Proc 定义
+
+UNSHIFT   = -> l { -> x {
+              PAIR[FALSE][PAIR[x][l]]
+            } }
+构造列表的例子：
+
+>> my_list =
+     UNSHIFT[
+       UNSHIFT[
+         UNSHIFT[EMPTY][THREE]
+       ][TWO]
+     ][ONE]
+.. 我们通过 RANGE Proc 来实现：
+
+def range(m, n)
+  if m <= n
+    range(m + 1, n).unshift(m)
+  else
+    []
+  end
+end
+这显然是个递归结构，因此我们同样使用 Y 组合子改写：
+
+RANGE =
+  Z[-> f {
+    -> m { -> n {
+      IF[IS_LESS_OR_EQUAL[m][n]][
+        -> x {
+          UNSHIFT[f[INCREMENT[m]][n]][m][x]
+        }
+      ][
+        EMPTY
+      ]
+    } }
+  }]
+为了实现 #map ，我们首先实现 FOLD。FOLD类似 Ruby 中的 Enumerable#inject 。
+
+既然要实现 FOLD，首先需要实现 FIRST 和 REST：
+
+FIRST     = -> l { LEFT[RIGHT[l]] }
+REST      = -> l { RIGHT[RIGHT[l]] }
+注意，由于我们用首个元素表示是否为空列表，因此不能直接使用 LEFT 和 RIGHT 作 FIRST 和 REST 使用。
+
+然后实现FOLD：
+
+FOLD =
+  Z[-> f {
+    -> l { -> x { -> g {
+      IF[IS_EMPTY[l]][
+        x
+      ][
+        -> y {
+          g[f[REST[l]][x][g]][FIRST[l]][y]
+        }
+      ]
+    } } }
+  }]
+实现了 FOLD 之后， map 就能很容易地实现了。
+
+MAP =
+  -> k { -> f {
+    FOLD[k][EMPTY][
+      -> l { -> x { UNSHIFT[l][f[x]] } }
+    ]
+  } }
+好了，用 RANGE 和 MAP 替换一下，我们的程序基本上就差不多了，只剩下字符串了：
+
+MAP[RANGE[ONE][HUNDRED]][-> n {
+  IF[IS_ZERO[MOD[n][FIFTEEN]]][
+    'FizzBuzz'
+  ][IF[IS_ZERO[MOD[n][THREE]]][
+    'Fizz'
+  ][IF[IS_ZERO[MOD[n][FIVE]]][
+    'Buzz'
+  ][
+    n.to_s
+  ]]]
+}]
+字符串
+
+字符串是由字符组成的。因此我们可以把字符串看成字符的列表，然后我们只需实现字符就可以了。
+
+字符串可以编码为数字。FIZZBUZZ 中只用到了0-9、B、F、I、Z、U这些字符，因此我们偷懒实现一个只支持这些字符的集合：
+
+TEN = MULTIPLY[TWO][FIVE]
+B   = TEN
+F   = INCREMENT[B]
+I   = INCREMENT[F]
+U   = INCREMENT[I]
+ZED = INCREMENT[U]
+我们使用10-14来表示这五个字符，0-9保留，用于表示数字的字符。
+
+我们用 ZED 表示 Z，这是因为 Z 已经被我们用来表示 Z 组合子了。
+
+有了字符之后，字符串就直接用列表表示了：
+
+FIZZ     = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][I]][F]
+BUZZ     = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][U]][B]
+FIZZBUZZ = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[BUZZ][ZED]][ZED]][I]][F]
+剩下的唯一没有实现的就是 FIxnum#to_s 方法了。要实现改方法，我们需要：
+
+将数字转化为一个列表，列表中的元素为该数字的每一位。
+将每个元素用字符表示。
+转化为列表，我们只需递归地除以 10 即可：
+
+def to_digits(n)
+  previous_digits =
+    if n < 10
+      []
+    else
+      to_digits(n / 10)
+    end
+
+  previous_digits.push(n % 10)
+end
+我们还没有实现 < ，不过这里可以用 n <= 9 来代替。然后我们需要实现 PUSH 和 DIV
+
+PUSH 和 UNSHIFT 很接近，只有位置的差别。为了在尾部添加元素，我们可以先将该元素添加到一个空表中，然后在设法在这个新列表的前部加上原列表：
+
+PUSH =
+  -> l {
+    -> x {
+      FOLD[l][UNSHIFT[EMPTY][x]][UNSHIFT]
+    }
+  }
+除法的实现是基于减法，计算需要减多少次才能减到小于除数：
+
+DIV =
+  Z[-> f { -> m { -> n {
+    IF[IS_LESS_OR_EQUAL[n][m]][
+      -> x {
+        INCREMENT[f[SUBTRACT[m][n]][n]][x]
+      }
+    ][
+      ZERO
+    ]
+  } } }]
+基于以上两个 Proc，我们可以有：
+
+TO_DIGITS =
+  Z[-> f { -> n { PUSH[
+    IF[IS_LESS_OR_EQUAL[n][DECREMENT[TEN]]][
+      EMPTY
+    ][
+      -> x {
+        f[DIV[n][TEN]][x]
+      }
+    ]
+  ][MOD[n][TEN]] } }]
+大功告成
+
+利用我们前面的成果，我们达成了目标！
+
+MAP[RANGE[ONE][HUNDRED]][-> n {
+  IF[IS_ZERO[MOD[n][FIFTEEN]]][
+    FIZZBUZZ
+  ][IF[IS_ZERO[MOD[n][THREE]]][
+    FIZZ
+  ][IF[IS_ZERO[MOD[n][FIVE]]][
+    BUZZ
+  ][
+    TO_DIGITS[n]
+  ]]]
+}]
