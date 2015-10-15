@@ -3,10 +3,15 @@
 class Object
   def self.常量缺失(常量名)
     常量字符串 = 常量名.字符串化
-    #丘奇数
-    输出 'num' if 常量字符串.开始于?('FRN_')
-    #字符串
-    输出 'str' if 常量字符串.开始于?('FRS_')
+    if /^FR(?<类型>.)_(?<值>\d+)$/ =~ 常量字符串
+      常量值 = case 类型
+               when 'N' then FR.丘奇数化(值.整数化)
+               when 'S' then FR.丘奇串化(值)
+               else 引发 NameError, "undefined constant #{常量名}"
+               end
+      定义常量(常量名, 常量值)
+      return 常量值
+    end
     引发 NameError, "undefined constant #{常量名}"
   end
 end
