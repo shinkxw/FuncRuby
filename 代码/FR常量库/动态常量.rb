@@ -6,6 +6,7 @@ class Object
     if /^FR(?<类型>.)_(?<值>.+)$/ =~ 常量字符串
       常量值 = case 类型
                when 'N' then FR.丘奇数化(值.整数化)
+               when 'C' then FR.λ字符化(值)
                when 'S' then FR.λ字符串化(值)
                else 引发 NameError, "undefined constant #{常量名}"
                end
