@@ -6,7 +6,7 @@ require_relative '代码/加载'
 
 忽略错误 do
   C间隔.间隔
-  结果集 = FR列表收集[FR范围[FRN_1][FRN_100]][-> n {
+  结果集 = FR列表收集[FR范围[FRN_1][FRN_50]][-> n {
     FR如果[FR为零[FR取余[n][FRN_15]]][
       FRS_FizzBuzz
     ][FR如果[FR为零[FR取余[n][FRN_3]]][
