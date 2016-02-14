@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env ruby -w
 # encoding: UTF-8
 require_relative '../SCRF/加载'
-require_relative '代码/加载'
+require_relative '加载'
 需要 'C间隔'
 
 忽略错误 do
